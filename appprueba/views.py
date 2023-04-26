@@ -6,14 +6,37 @@ from django.template import loader
 from appprueba.forms import ContactoForm
 
 from datetime import datetime
+from django.contrib import messages
+
+from django.core.mail import send_mail
+from django.conf import settings
 
 # Create your views here.
 def index(request):    
-    mensaje=None
     if(request.method=='POST'):
         contacto_form = ContactoForm(request.POST)
-        mensaje='Hemos recibido tus datos'
-        # acción para tomar los datos del formulario
+        if(contacto_form.is_valid()):  
+            messages.success(request,'Hemos recibido tus datos')  
+            # messages.info(request,'esto es otro tipo')    
+            mensaje=f"De: {contacto_form.cleaned_data['nombre']} <{contacto_form.cleaned_data['email']}>\n Asunto: {contacto_form.cleaned_data['asunto']}\n Mensaje: {contacto_form.cleaned_data['mensaje']}"
+            mensaje_html=f"""
+                <p>De: {contacto_form.cleaned_data['nombre']} <a href="mailto:{contacto_form.cleaned_data['email']}">{contacto_form.cleaned_data['email']}</a></p>
+                <p>Asunto:  {contacto_form.cleaned_data['asunto']}</p>
+                <p>Mensaje: {contacto_form.cleaned_data['mensaje']}</p>
+            """
+            asunto="CONSULTA DESDE LA PAGINA - "+contacto_form.cleaned_data['asunto']
+            send_mail(
+                asunto,
+                mensaje,
+                settings.EMAIL_HOST_USER,
+                [settings.RECIPIENT_ADDRESS],
+                fail_silently=False,
+                html_message=mensaje_html
+            )  
+            contacto_form = ContactoForm() #reset formulario
+            # acción para tomar los datos del formulario            
+        else:
+            messages.warning(request,'Por favor revisa los errores en el formulario')
     else:
         contacto_form = ContactoForm()
     listado_cursos = [
@@ -32,19 +55,13 @@ def index(request):
             'descripcion':'test',
             'categoria':'Análisis de Datos',
         },
-        {
-            'nombre':'Big Data Avanzado',
-            'descripcion':'test',
-            'categoria':'Análisis de Datos',
-        },
-    ]
-
+    ],
     context = {                
-                'cursos':listado_cursos,
-                'mensaje':mensaje,
+                'cursos':listado_cursos,                
                 'contacto_form':contacto_form
             }
     return render(request,'appprueba/index.html',context)
+
 
 def quienes_somos(request):
     template = loader.get_template('appprueba/quienes_somos.html')
